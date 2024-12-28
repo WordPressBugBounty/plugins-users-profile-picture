@@ -3,9 +3,9 @@
 Contributors: dewtechnolab, dew491212
 Tags: users, user, user profile, avatar
 Requires at least: 4.5.0
-Stable tag: 1.0.4
-Version: 1.0.4
-Tested up to: 6.0.2
+Stable tag: 1.0.5
+Version: 1.0.5
+Tested up to: 6.7.1
 Requires PHP: 7.4
 License: GPLv3 or later License
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
@@ -113,16 +113,21 @@ Yes, but you'll have to set a new profile image per site. This is currently a li
 
 
 
+= 1.0.5 =
+* Added compatibility with WordPress version 6.7.1.
+
+
+
 = 1.0.4 =
- * Added compatibility with WordPress version 6.0.
- * Other minor bug fixes.
+* Added compatibility with WordPress version 6.0.
+* Other minor bug fixes.
 
 
 
 = 1.0.3 =
- * Added compatibility with PHP version 8.0.
- * Added compatibility with WordPress version 5.6.
- * Other minor bug fixes.
+* Added compatibility with PHP version 8.0.
+* Added compatibility with WordPress version 5.6.
+* Other minor bug fixes.
 
 
 
@@ -148,6 +153,6 @@ Yes, but you'll have to set a new profile image per site. This is currently a li
 
 
 
-= 1.0.4 =
+= 1.0.5 =
 
-* Added compatibility with WordPress version 6.0.
+* Added compatibility with WordPress version 6.7.1.

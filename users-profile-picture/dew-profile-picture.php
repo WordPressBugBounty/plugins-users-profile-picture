@@ -2,7 +2,7 @@
 /**
  * Plugin Name: User Profile Picture
  * Description: Use the native WP uploader on your user profile page.
- * Version: 1.0.4
+ * Version: 1.0.5
  * Plugin URI: http://dewtechnolab.com/project/user-profile-picture-plugin/
  * Author: Dew Technolab
  * Author URI: http://dewtechnolab.com/
