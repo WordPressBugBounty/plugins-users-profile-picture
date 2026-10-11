@@ -2,30 +2,37 @@
 /**
  * Plugin Name: User Profile Picture
  * Description: Use the native WP uploader on your user profile page.
- * Version: 1.0.6
+ * Version: 1.0.7
  * Plugin URI: http://dewtechnolab.com/project/user-profile-picture-plugin/
  * Author: Dew Technolab
  * Author URI: http://dewtechnolab.com/
  * Requires at least: 4.5
- * Text Domain: dew-profile-picture
- * Domain Path: /languages
- * License: GPLv3 or later License
- * URI: http://www.gnu.org/licenses/gpl-3.0.html
+ * Requires PHP: 7.4
+ * Text Domain: users-profile-picture
+ * License: GPLv3 or later
+ * License URI: https://www.gnu.org/licenses/gpl-3.0.html
 **/
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit; // Exit if accessed directly
+}
+
 class Dew_Profile_Picture {
+	// Plugin version, used to bust browser caches when the script changes
+	const VERSION = '1.0.7';
+
 	//private
 	private $plugin_url = '';
 	private $plugin_dir = '';
 	private $plugin_path = '';
 	/**
 	* __construct()
-	* 
+	*
 	* Class constructor
 	*
 	*/
 	function __construct(){
-		//* Localization Code */
-		load_plugin_textdomain( 'dew-profile-picture', false, dirname( plugin_basename( __FILE__ ) ));
+		// Translations: WordPress.org language packs load automatically for the "users-profile-picture" text domain.
 		$this->plugin_path = plugin_basename( __FILE__ );
 		$this->plugin_url = rtrim( plugin_dir_url(__FILE__), '/' );
 		$this->plugin_dir = rtrim( plugin_dir_path(__FILE__), '/' );
@@ -37,6 +44,8 @@ class Dew_Profile_Picture {
 		//User update action
 		add_action( 'edit_user_profile_update', array( $this, 'save_user_profile' ) );
 		add_action( 'personal_options_update', array( $this, 'save_user_profile' ) );
+		// Picture chosen on Users > Add New
+		add_action( 'user_register', array( $this, 'save_new_user_profile' ) );
 		//User Avatar override
 		add_filter( 'get_avatar', array( $this, 'avatar_override' ), 10, 6 );
 	}
@@ -46,25 +55,27 @@ class Dew_Profile_Picture {
 	* insert_upload_form
 	*
 	* Adds an upload form to the user profile page and outputs profile image if there is one
+	*
+	* @param WP_User|string $user The profile being edited, or the form context on Users > Add New.
 	*/
-	public function insert_upload_form() {
-		$user_id = isset( $_GET[ 'user_id' ] ) ? absint( $_GET[ 'user_id' ] ) : 0;
-		if ( $user_id == 0 && defined( 'IS_PROFILE_PAGE' ) && IS_PROFILE_PAGE == true ) {
-			$current_user = wp_get_current_user();
-			$user_id = $current_user->ID;
+	public function insert_upload_form( $user = null ) {
+		// Multisite "Add Existing User" form: there is no new profile to attach a picture to.
+		if ( 'add-existing-user' === $user ) {
+			return;
 		}
-		$profile_pic = get_user_meta($user_id, 'profilepicture', true);
+		$user_id = $user instanceof WP_User ? $user->ID : 0;
+		$profile_pic = $user_id ? get_user_meta( $user_id, 'profilepicture', true ) : '';
 		?>
 		<table class="form-table fh-profile-upload-options">
 			<tr>
 				<th>
-					<label for="image"><?php _e('Profile Picture', 'dew') ?></label>
+					<label for="dew-image"><?php esc_html_e( 'Profile Picture', 'users-profile-picture' ); ?></label>
 				</th>
-	 
+
 				<td>
-					<input type="button" data-id="dew_image_id" data-src="dew-img" class="button dew-image" name="dew_image" id="dew-image" value="Upload" />
+					<input type="button" data-id="dew_image_id" data-src="dew-img" class="button dew-image" name="dew_image" id="dew-image" value="<?php esc_attr_e( 'Upload', 'users-profile-picture' ); ?>" />
 					<input type="hidden" class="button" name="dew_image_id" id="dew_image_id" value="<?php echo !empty($profile_pic) ? esc_url($profile_pic) : ''; ?>" />
-					<img id="dew-img" src="<?php echo !empty($profile_pic) ? esc_url($profile_pic) : $this->get_plugin_url( 'img/placeholder.png' ); ?>" style="max-width: 100px; max-height: 100px;"/>
+					<img id="dew-img" src="<?php echo esc_url( ! empty( $profile_pic ) ? $profile_pic : $this->get_plugin_url( 'img/placeholder.png' ) ); ?>" alt="" style="max-width: 100px; max-height: 100px;"/>
 				</td>
 			</tr>
 		</table><?php
@@ -73,16 +84,21 @@ class Dew_Profile_Picture {
 	/**
 	* print_media_scripts
 	*
-	* Output media scripts for thickbox and media uploader
+	* Output media scripts for thickbox and media uploader, only on the user profile screens
+	*
+	* @param string $hook_suffix Current admin page.
 	**/
-	public function print_media_scripts() {
+	public function print_media_scripts( $hook_suffix = '' ) {
+		if ( ! in_array( $hook_suffix, array( 'profile.php', 'user-edit.php', 'user-new.php' ), true ) ) {
+			return;
+		}
 		wp_enqueue_media();
-		wp_enqueue_script('dew-uploader', $this->get_plugin_url('/js/uploaders.js'), array('jquery'), false, true );
+		wp_enqueue_script( 'dew-uploader', $this->get_plugin_url( '/js/uploaders.js' ), array( 'jquery' ), self::VERSION, true );
 	} //end print_media_scripts
 
 	/**
 	* get_plugin_dir()
-	* 
+	*
 	* Returns an absolute path to a plugin item
 	*
 	* @param		string    $path	Relative path to make absolute (e.g., /css/image.png)
@@ -92,13 +108,13 @@ class Dew_Profile_Picture {
 		$dir = $this->plugin_dir;
 		if ( !empty( $path ) && is_string( $path) )
 			$dir .= '/' . ltrim( $path, '/' );
-		return $dir;		
+		return $dir;
 	} //end get_plugin_dir
-	
-	
+
+
 	/**
 	* get_plugin_url()
-	* 
+	*
 	* Returns an absolute url to a plugin item
 	*
 	* @param		string    $path	Relative path to plugin (e.g., /css/image.png)
@@ -108,21 +124,46 @@ class Dew_Profile_Picture {
 		$dir = $this->plugin_url;
 		if ( !empty( $path ) && is_string( $path) )
 			$dir .= '/' . ltrim( $path, '/' );
-		return $dir;	
+		return $dir;
 	} //get_plugin_url
-	
+
 	/**
 	* save_user_profile()
 	*
-	* Saves user profile fields
-	* @param int $user_id 
+	* Saves user profile fields. Core verifies the profile form's nonce before firing
+	* personal_options_update / edit_user_profile_update.
+	*
+	* @param int $user_id
 	**/
 	public function save_user_profile( $user_id ) {
-		if( current_user_can('edit_users') ){
-			$profile_pic = empty($_POST['dew_image_id']) ? '' : esc_url($_POST['dew_image_id']);
-			update_user_meta($user_id, 'profilepicture', $profile_pic);
+		if ( ! current_user_can( 'edit_users' ) || ! current_user_can( 'edit_user', $user_id ) ) {
+			return;
 		}
+		// Only when the picture field was submitted: other code that fires these hooks must not wipe the picture.
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- verified by core before these hooks run.
+		if ( ! isset( $_POST['dew_image_id'] ) ) {
+			return;
+		}
+		// Stored raw (escaped on output); only http(s) image URLs are accepted.
+		$profile_pic = esc_url_raw( wp_unslash( $_POST['dew_image_id'] ), array( 'http', 'https' ) );
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+		update_user_meta( $user_id, 'profilepicture', $profile_pic );
 	} //end save_user_profile
+
+	/**
+	* save_new_user_profile()
+	*
+	* Saves the picture chosen on Users > Add New (core verifies that form's nonce before creating the user).
+	*
+	* @param int $user_id New user ID.
+	**/
+	public function save_new_user_profile( $user_id ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified by core, see above.
+		if ( ! is_admin() || ! isset( $_POST['action'] ) || 'createuser' !== $_POST['action'] ) {
+			return;
+		}
+		$this->save_user_profile( $user_id );
+	} //end save_new_user_profile
 
 	/**
 	* avatar_override()
@@ -130,68 +171,87 @@ class Dew_Profile_Picture {
 	* Overrides an avatar with a profile image
 	*
 	* @param string $avatar SRC to the avatar
-	* @param mixed $id_or_email 
+	* @param mixed $id_or_email
 	* @param int $size Size of the image
 	* @param string $default URL to the default image
 	* @param string $alt Alternative text
+	* @param array $args Arguments passed to get_avatar()
 	**/
 	public function avatar_override( $avatar, $id_or_email, $size, $default, $alt, $args = array() ) {
 		global $pagenow;
 		if ( 'options-discussion.php' == $pagenow ) return $avatar; //Stop overriding gravatars on options-discussion page
-		
+		if ( ! empty( $args['force_default'] ) ) return $avatar;
+
 		//Get user data
-		if ( is_numeric( $id_or_email ) ) {
-			$user = get_user_by( 'id', ( int )$id_or_email );
-		} elseif( is_object( $id_or_email ) )  {
-			$comment = $id_or_email;
-			if ( empty( $comment->user_id ) ) {
-				$user = get_user_by( 'id', $comment->user_id );
-			} else {
-				$user = get_user_by( 'email', $comment->comment_author_email );
-			}
-			if ( !$user ) return $avatar;
-		} elseif( is_string( $id_or_email ) ) {
-			$user = get_user_by( 'email', $id_or_email );
-		} else {
-			return $avatar;
-		}
-		if ( !$user ) return $avatar;
+		$user = $this->get_avatar_user( $id_or_email );
+		if ( ! $user ) return $avatar;
 		$user_id = $user->ID;
 
 		//Build classes array based on passed in args, else set defaults - see get_avatar in /wp-includes/pluggable.php
 		$classes = array(
 			'avatar',
-			sprintf( 'avatar-%s', esc_attr( $size ) ),
+			sprintf( 'avatar-%s', absint( $size ) ),
 			'photo'
-		);	
-		if ( isset( $args[ 'class' ] ) ) {
-			if ( is_array( $args['class'] ) ) {
-				$classes = array_merge( $classes, $args['class'] );
-			} else {
-				$args[ 'class' ] = explode( ' ', $args[ 'class' ] );
-				$classes = array_merge( $classes, $args[ 'class' ] );
-			}
+		);
+		if ( ! empty( $args['class'] ) ) {
+			$classes = array_merge( $classes, is_array( $args['class'] ) ? $args['class'] : explode( ' ', $args['class'] ) );
 		}
 
 		//Get custom filter classes
 		$classes = (array)apply_filters( 'dpp_avatar_classes', $classes );
 
+		// Keep the lazy-loading hints WordPress computed for this image
+		$attr = array( 'alt' => $alt, 'class' => implode( ' ', $classes ) );
+		foreach ( array( 'loading', 'decoding', 'fetchpriority' ) as $key ) {
+			if ( ! empty( $args[ $key ] ) ) {
+				$attr[ $key ] = $args[ $key ];
+			}
+		}
+
 		//Determine if the user has a profile image
-		$custom_avatar = dew_profile_img( $user_id, array( 
-			'size' => array( $size, $size ), 
-			'attr' => array( 'alt' => $alt, 'class' => implode( ' ', $classes ) ), 
+		$custom_avatar = dew_profile_img( $user_id, array(
+			'size' => array( $size, $size ),
+			'attr' => $attr,
 			'echo' => false )
 		 );
 
-		if ( ! $custom_avatar ) return $avatar; 
-		return $custom_avatar;	
+		if ( ! $custom_avatar ) return $avatar;
+		return $custom_avatar;
 	} //end avatar_override
+
+	/**
+	* get_avatar_user()
+	*
+	* The user an avatar request refers to: a user ID, email, WP_User, WP_Post (its author) or a comment
+	* left by a logged-in member. Guest comments keep their default avatar.
+	*
+	* @param mixed $id_or_email Value passed to get_avatar().
+	* @return WP_User|false
+	**/
+	private function get_avatar_user( $id_or_email ) {
+		if ( is_numeric( $id_or_email ) ) {
+			return get_user_by( 'id', absint( $id_or_email ) );
+		}
+		if ( $id_or_email instanceof WP_User ) {
+			return $id_or_email->exists() ? $id_or_email : false;
+		}
+		if ( $id_or_email instanceof WP_Post ) {
+			return get_user_by( 'id', (int) $id_or_email->post_author );
+		}
+		if ( is_object( $id_or_email ) ) {
+			return ! empty( $id_or_email->user_id ) ? get_user_by( 'id', (int) $id_or_email->user_id ) : false;
+		}
+		if ( is_string( $id_or_email ) && is_email( $id_or_email ) ) {
+			return get_user_by( 'email', $id_or_email );
+		}
+		return false;
+	} //end get_avatar_user
 }
 /* end Dew_Profile_Picture */
 //instantiate the class
 global $dew_pp;
 if (class_exists('Dew_Profile_Picture')) {
-	if (get_bloginfo('version') >= "4.5") {
+	if ( version_compare( get_bloginfo( 'version' ), '4.5', '>=' ) ) {
 		add_action( 'plugins_loaded', 'dew_pp_instantiate' );
 	}
 }
@@ -201,10 +261,11 @@ function dew_pp_instantiate() {
 }
 /**
 * dew_profile_img
-* 
+*
 * Adds a profile image
 *
 @param $user_id INT - The user ID for the user to retrieve the image for
+@param $args array - 'size' (array( width, height ), a number or a named size), 'attr' (img attributes), 'echo'
 */
 function dew_profile_img( $user_id, $args = array() ) {
 
@@ -214,15 +275,26 @@ function dew_profile_img( $user_id, $args = array() ) {
 		'echo' => true
 	);
 	$args = wp_parse_args( $args, $defaults );
-	extract( $args ); //todo - get rid of evil extract
 
 	$profile = '';
 	$profile_pic = get_user_meta($user_id, 'profilepicture', true);
 	if ($profile_pic) {
-		$profile = '<img alt="" src="'.esc_url($profile_pic).'" class="avatar avatar-'.$size[0].' photo" height="'.$size[0].'" width="'.$size[0].'">';
+		// Named sizes such as the default 'thumbnail' fall back to the standard avatar size.
+		$size = is_array( $args['size'] ) ? reset( $args['size'] ) : $args['size'];
+		$size = is_numeric( $size ) ? absint( $size ) : 96;
+		$attr = is_array( $args['attr'] ) ? $args['attr'] : array();
+		$attr = wp_parse_args( $attr, array( 'alt' => '', 'class' => 'avatar avatar-' . $size . ' photo' ) );
+
+		$profile = '<img alt="' . esc_attr( $attr['alt'] ) . '" src="' . esc_url( $profile_pic ) . '" class="' . esc_attr( $attr['class'] ) . '" height="' . $size . '" width="' . $size . '"';
+		foreach ( array( 'loading', 'decoding', 'fetchpriority' ) as $key ) {
+			if ( ! empty( $attr[ $key ] ) ) {
+				$profile .= ' ' . $key . '="' . esc_attr( $attr[ $key ] ) . '"';
+			}
+		}
+		$profile .= '>';
 	}
-	if ( $echo ) {
-		echo $Profile;
+	if ( $args['echo'] ) {
+		echo $profile; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts above.
 	} else {
 		return $profile;
 	}

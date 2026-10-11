@@ -2,13 +2,13 @@
 
 Contributors: dewtechnolab, dew491212
 Tags: users, user, user profile, avatar
-Requires at least: 4.5.0
-Stable tag: 1.0.6
-Version: 1.0.6
-Tested up to: 7.0.0
+Requires at least: 4.5
+Stable tag: 1.0.7
+Version: 1.0.7
+Tested up to: 7.1
 Requires PHP: 7.4
-License: GPLv3 or later License
-License URI: http://www.gnu.org/licenses/gpl-3.0.html
+License: GPLv3 or later
+License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
 
 
@@ -113,6 +113,19 @@ Yes, but you'll have to set a new profile image per site. This is currently a li
 
 
 
+= 1.0.7 =
+
+* Fix: The profile picture is now also used when themes request an avatar with a user object, a post or a member's comment, and keeps the theme's alt text, CSS classes and lazy loading.
+* Fix: `dew_profile_img()` printed nothing (and a PHP warning) when called with its default settings, and its default size produced an invalid image size.
+* Fix: The picture chosen on Users > Add New is now saved.
+* Fix: Picture URLs containing "&" were saved HTML-encoded.
+* Security: Only http and https picture URLs are accepted, saving checks permission to edit that specific user, and a profile save without the picture field no longer removes the picture.
+* Tweak: The media uploader now loads only on the user profile screens instead of every admin page.
+* Tweak: The text domain now matches the plugin slug so WordPress.org translations load.
+* Tested with WordPress 7.1.
+
+
+
 = 1.0.6 =
 
 * Added compatibility with WordPress version 7.0.0.
@@ -156,6 +169,12 @@ Yes, but you'll have to set a new profile image per site. This is currently a li
 
 
 == Upgrade Notice ==
+
+
+
+= 1.0.7 =
+
+* Fixes profile pictures not showing in some themes and the dew_profile_img() function, and loads the uploader only on profile screens.
 
 
 

@@ -20,7 +20,7 @@ jQuery( document ).ready( function() {
             if ( _dew_media && ( attachment.type === 'image' ) ) {
                 if ( image_id.indexOf( "," ) !== -1 ) {
                     image_id = image_id.split( "," );
-                    $image_ids = '';
+                    var $image_ids = '';
                     jQuery.each( image_id, function( key, value ) {
                         if ( $image_ids )
                             $image_ids = $image_ids + ',#' + value;
@@ -34,7 +34,6 @@ jQuery( document ).ready( function() {
                 }
  
                 jQuery( '#' + textbox_id ).val( attachment.url );
-                                console.log(textbox_id)
                 current_element.attr( 'src', attachment.url ).show();
             } else {
                 alert( 'Please select a valid image file' );
