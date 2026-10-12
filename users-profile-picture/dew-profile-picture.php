@@ -1,8 +1,8 @@
 <?php
 /**
- * Plugin Name: User Profile Picture
- * Description: Use the native WP uploader on your user profile page.
- * Version: 1.0.7
+ * Plugin Name: User Profile Picture - Custom Local Avatars
+ * Description: Replace Gravatar with a custom profile picture from the Media Library, shown wherever WordPress displays avatars.
+ * Version: 1.0.9
  * Plugin URI: http://dewtechnolab.com/project/user-profile-picture-plugin/
  * Author: Dew Technolab
  * Author URI: http://dewtechnolab.com/
@@ -19,7 +19,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Dew_Profile_Picture {
 	// Plugin version, used to bust browser caches when the script changes
-	const VERSION = '1.0.7';
+	const VERSION = '1.0.9';
+
+	// Where the review request and the plugins-screen link send people
+	const REVIEW_URL = 'https://wordpress.org/support/plugin/users-profile-picture/reviews/#new-post';
 
 	//private
 	private $plugin_url = '';
@@ -48,8 +51,90 @@ class Dew_Profile_Picture {
 		add_action( 'user_register', array( $this, 'save_new_user_profile' ) );
 		//User Avatar override
 		add_filter( 'get_avatar', array( $this, 'avatar_override' ), 10, 6 );
+		// Review request (profile screens only) and plugins-screen link
+		add_action( 'admin_notices', array( $this, 'review_notice' ) );
+		add_action( 'admin_init', array( $this, 'handle_review_notice' ) );
+		add_filter( 'plugin_row_meta', array( $this, 'plugin_row_meta' ), 10, 2 );
 	}
 	/* end constructor */
+
+	/**
+	* review_notice()
+	*
+	* Asks administrators for a WordPress.org review on the user profile screens, two weeks after first use.
+	* "Maybe later" hides it for 30 days; "Leave a review" and "I already did" hide it for good.
+	**/
+	public function review_notice() {
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		if ( ! $screen || ! in_array( $screen->id, array( 'profile', 'user-edit', 'users' ), true ) || ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		$first_use = (int) get_option( 'dew_pp_installed_time' );
+		if ( ! $first_use ) {
+			add_option( 'dew_pp_installed_time', time(), '', false );
+			return;
+		}
+		$state = get_option( 'dew_pp_review_notice' );
+		if ( 'done' === $state || ( is_numeric( $state ) && time() < (int) $state ) || time() - $first_use < 14 * DAY_IN_SECONDS ) {
+			return;
+		}
+		?>
+		<div class="notice notice-info">
+			<p><?php esc_html_e( 'Thanks for using User Profile Picture! If it helps your site, would you leave a review on WordPress.org? It takes a minute and helps other people find the plugin.', 'users-profile-picture' ); ?></p>
+			<p>
+				<a class="button button-primary" href="<?php echo esc_url( $this->review_action_url( 'review' ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Leave a review', 'users-profile-picture' ); ?></a>
+				<a class="button" href="<?php echo esc_url( $this->review_action_url( 'later' ) ); ?>"><?php esc_html_e( 'Maybe later', 'users-profile-picture' ); ?></a>
+				<a href="<?php echo esc_url( $this->review_action_url( 'done' ) ); ?>"><?php esc_html_e( 'I already did', 'users-profile-picture' ); ?></a>
+			</p>
+		</div>
+		<?php
+	} //end review_notice
+
+	/**
+	* review_action_url()
+	*
+	* @param string $action review, later or done.
+	* @return string Nonce-protected link for the review notice buttons.
+	**/
+	private function review_action_url( $action ) {
+		return wp_nonce_url( add_query_arg( 'dew_pp_review', $action ), 'dew_pp_review' );
+	} //end review_action_url
+
+	/**
+	* handle_review_notice()
+	*
+	* Handles the review notice buttons.
+	**/
+	public function handle_review_notice() {
+		if ( empty( $_GET['dew_pp_review'] ) || ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		check_admin_referer( 'dew_pp_review' );
+		$action = sanitize_key( wp_unslash( $_GET['dew_pp_review'] ) );
+		update_option( 'dew_pp_review_notice', 'later' === $action ? (string) ( time() + 30 * DAY_IN_SECONDS ) : 'done', false );
+		if ( 'review' === $action ) {
+			wp_redirect( self::REVIEW_URL ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- fixed WordPress.org address.
+			exit;
+		}
+		wp_safe_redirect( remove_query_arg( array( 'dew_pp_review', '_wpnonce' ) ) );
+		exit;
+	} //end handle_review_notice
+
+	/**
+	* plugin_row_meta()
+	*
+	* Adds a review link under the plugin on the Plugins screen.
+	*
+	* @param array  $links Row meta links.
+	* @param string $file  Plugin file.
+	* @return array
+	**/
+	public function plugin_row_meta( $links, $file ) {
+		if ( plugin_basename( __FILE__ ) === $file ) {
+			$links[] = '<a href="' . esc_url( self::REVIEW_URL ) . '" target="_blank" rel="noopener">' . esc_html__( 'Leave a review', 'users-profile-picture' ) . '</a>';
+		}
+		return $links;
+	} //end plugin_row_meta
 
 	/**
 	* insert_upload_form
